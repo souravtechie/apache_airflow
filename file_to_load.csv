@@ -1,0 +1,6 @@
+video_id,title,description,created_date,views,comments,likes,author
+1,'Airflow intro','learn about Airflow in under 3 minutes','2023-01-12',10000,8,5099,'techtalkSourav'
+2,'Install Airflow in your mac','learn about Airflow in under 3 minutes','2023-01-18',50000,8,50,'techtalkSourav'
+3,'What is BTC?','learn why you should buy BTC and move off of exchanges as soon as possible','2023-02-10',100443,8,5330,'techtalkSourav'
+4,'Podcast 1: Gourav','Research Scientist Gourav talks about semi conductors and Sanskrit','2022-12-26',451100999,8,5230,'techtalkSourav'
+5,'Podcast 2: Prateek','Senior Software engineers talks about the tech scene in Bangalore','2023-03-18',754610087,8,450,'techtalkSourav'

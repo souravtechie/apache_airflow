@@ -63,6 +63,7 @@ cd aws-mwaa-local-runner
 Build the Docker container image using the following command:
 
 ```bash
+. aws-keys.sh
 ./mwaa-local-env build-image
 ```
 

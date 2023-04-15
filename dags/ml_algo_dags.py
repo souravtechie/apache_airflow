@@ -23,7 +23,7 @@ for ml_config in os.listdir(f"{dag_folder}/ml_configs"):
 
     returned_dag = generate_ml_dags(
         dag_id=dag_id,
-        ml_config=ml_config.replace('json', ''),
+        ml_config=ml_config_dict,
         default_args=default_args,
         ml_config_dict=ml_config_dict
     )

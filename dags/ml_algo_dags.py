@@ -16,6 +16,8 @@ default_args = {
 
 
 for ml_config in os.listdir(f"{dag_folder}/ml_configs"):
+    if ml_config == 'readme.md':
+        continue
     file_contents = open(os.path.join(f"{dag_folder}/ml_configs/{ml_config}"))
     ml_config_dict = json.load(file_contents)
 

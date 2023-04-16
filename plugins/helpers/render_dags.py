@@ -16,19 +16,20 @@ from airflow.operators.python_operator import PythonOperator
 s3 = S3Hook(aws_conn_id='s3_test')
 s3.get_conn()
 
-def get_modeling_data(model_name):
+def get_modeling_data(model_config):
     """
     This function returns the S3 key of the input file
     :param model_name:
     :return:
     """
-    key = f'input_data/{model_name}/input_file.csv'
+    key = model_config.get("input_file_key")
     input_file = s3.check_for_key(key=key, bucket_name='yt-ml-demo')
 
     if input_file:
         return {"file_key": key}
 
     else:
+        logging.info("No input data found")
         return None
 
 
@@ -49,7 +50,7 @@ def preprocess(model_config, **kwargs):
     s3.get_conn()
     #file_key = ti.xcom_pull(key="file_key", task_ids="get_modeling_data")
     file_key = kwargs['ti'].xcom_pull(task_ids="get_modeling_data")['file_key']
-    print(f"file_key = {file_key}")
+    logging.info(f"file_key = %s", file_key)
 
     input_file = s3.get_key(key=file_key, bucket_name='yt-ml-demo')
     df = pd.read_csv(io.BytesIO(input_file.get()['Body'].read()))
@@ -181,7 +182,7 @@ def generate_ml_dags(dag_id, ml_config, default_args):
             task_id='get_modeling_data',
             provide_context=True,
             python_callable=get_modeling_data,
-            op_args=[ml_config.get('algo_name')],
+            op_args=[ml_config],
             dag=dag
         )
 

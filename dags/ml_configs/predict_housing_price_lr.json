@@ -1,6 +1,7 @@
 {
   "schedule": "30 5 * * *",
   "algo_name": "LinearRegression",
+  "input_file_key": "input_data/LinearRegression/input_file.csv",
   "binary_map": ["mainroad", "guestroom", "basement", "hotwaterheating", "airconditioning", "prefarea"],
   "dummies": ["furnishingstatus"],
   "y": "price"

@@ -1,6 +1,7 @@
 {
   "schedule": "10 10 * * *",
   "algo_name": "LogisticRegression",
+  "input_file_key": "input_data/LogisticRegression/input_file.csv",
   "ternary_map": ["variety"],
   "y": "variety"
 }

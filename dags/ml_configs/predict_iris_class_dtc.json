@@ -1,6 +1,7 @@
 {
   "schedule": "30 8 * * *",
   "algo_name": "DecisionTreeClassifier",
+  "input_file_key": "input_data/DecisionTreeClassifier/input_file.csv",
   "ternary_map": ["variety"],
   "y": "variety"
 }

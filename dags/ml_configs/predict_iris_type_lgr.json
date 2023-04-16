@@ -1,0 +1,6 @@
+{
+  "schedule": "10 10 * * *",
+  "algo_name": "LogisticRegression",
+  "ternary_map": ["variety"],
+  "y": "variety"
+}

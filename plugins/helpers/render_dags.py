@@ -1,7 +1,7 @@
 import io
 import logging
 from io import StringIO # python3; python2: BytesIO
-
+import pickle
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.naive_bayes import GaussianNB
@@ -43,11 +43,16 @@ def get_modeling_data(model_name, **kwargs):
         return None
 
 
+def ternary_map(x):
+    return x.map({"Setosa": 0, "Versicolor": 2, "Virginica": 3})
+
+
+
 def binary_map(x):
     return x.map({'yes': 1, "no": 0})
 
 
-def preprocess(model_name, **kwargs):
+def preprocess(model_config, **kwargs):
     """
 
     :param ti:
@@ -63,43 +68,46 @@ def preprocess(model_name, **kwargs):
     df = pd.read_csv(io.BytesIO(input_file.get()['Body'].read()))
 
     # Do cleaning and pre processing
-    varlist = ['mainroad', 'guestroom', 'basement', 'hotwaterheating', 'airconditioning', 'prefarea']
+    binary_varlist = model_config.get("binary_map")
 
-    # Applying the function to the housing list
-    df[varlist] = df[varlist].apply(binary_map)
+    if binary_varlist is not None:
+        df[binary_varlist] = df[binary_varlist].apply(binary_map)
 
-    status = pd.get_dummies(df['furnishingstatus'], drop_first=True)
-    print(f"status = {status}")
-    df = pd.concat([df, status], axis=1)
-    df.drop(['furnishingstatus'], axis=1, inplace=True)
+    ternary_varlist = model_config.get("ternary_map")
+
+    if ternary_varlist is not None:
+        df[ternary_varlist] = df[ternary_varlist].apply(ternary_map)
+
+
+    if model_config.get("dummies") is not None:
+        for dummy_col in model_config.get("dummies"):
+            status = pd.get_dummies(df[dummy_col], drop_first=True)
+            df = pd.concat([df, status], axis=1)
+            df.drop([dummy_col], axis=1, inplace=True)
 
     csv_buffer = StringIO()
     df.to_csv(csv_buffer, index=False)
-    s3.load_string(string_data=csv_buffer.getvalue(), key=f'pre_processed_data/{model_name}/pre_processed_file.csv', bucket_name='yt-ml-demo', replace=True)
-    print(f"df = {df}")
+    s3.load_string(string_data=csv_buffer.getvalue(), key=f'pre_processed_data/{model_config.get("algo_name")}/pre_processed_file.csv', bucket_name='yt-ml-demo', replace=True)
 
 
 
-def train_model(model_name, **kwargs):
+def train_model(ml_config, **kwargs):
     """
 
     :param ti:
     :return:
     """
-    pre_processed_file_key = f'pre_processed_data/{model_name}/pre_processed_file.csv'
+    pre_processed_file_key = f'pre_processed_data/{ml_config.get("algo_name")}/pre_processed_file.csv'
 
     input_file = s3.get_key(key=pre_processed_file_key, bucket_name='yt-ml-demo')
     df = pd.read_csv(io.BytesIO(input_file.get()['Body'].read()))
 
     df_train, df_test = train_test_split(df, train_size=0.7, test_size=0.3, random_state=100)
-    # scaler = MinMaxScaler()
-    # num_vars = ['area', 'bedrooms', 'bathrooms', 'stories', 'parking', 'price']
-    # df_train[num_vars] = scaler.fit_transform(df_train[num_vars])
 
-    y_train = df_train.pop('price').to_numpy()
+    y_train = df_train.pop(ml_config.get("y")).to_numpy()
     X_train = df_train.to_numpy()
 
-    y_test = df_test.pop('price').to_numpy()
+    y_test = df_test.pop(ml_config.get("y")).to_numpy()
     X_test = df_test.to_numpy()
 
     print(f"X_train = \n{len(X_train)}")
@@ -108,31 +116,65 @@ def train_model(model_name, **kwargs):
     print(f"y_test = \n{len(y_test)}")
 
 
-    model = eval(model_name + '()')
+    model = eval(ml_config.get("algo_name") + '()')
 
     # Train model
     model.fit(X_train, y_train)
 
+    s3_key = f'trained_models/{ml_config.get("algo_name")}/model.sav'
+
+    # save the model to disk
+    filename = 'finalized_model.sav'
+
+    if s3.check_for_key(key=s3_key, bucket_name='yt-ml-demo'):
+        s3.delete_objects(keys=s3_key, bucket='yt-ml-demo')
+
+    pickle.dump(model, open(filename, 'wb'))
+    s3.load_file(filename=filename, key=s3_key, bucket_name='yt-ml-demo')
+
     # Make predictions
     y_pred = model.predict(X_test)
-    #y_pred = pd.DataFrame(y_pred, columns=['price'])
+
     final_op = []
     for i in range(0, len(X_test)):
         a = np.insert(X_test[i], 4, y_pred[i])
         final_op.append(list(a))
 
-    print(f"final_op = {final_op}, \nlen = {len(final_op)}")
-
     output_df = pd.DataFrame(final_op, columns=df.columns)
-    print(f"y_pred = {len(y_pred)}, output_df=\n{output_df.count()}")
-
     csv_buffer = StringIO()
     output_df.to_csv(csv_buffer, index=False)
-    s3.load_string(string_data=csv_buffer.getvalue(), key=f'output_data/{model_name}/output_file.csv', bucket_name='yt-ml-demo', replace=True)
+    s3.load_string(string_data=csv_buffer.getvalue(), key=f'output_data/{ml_config.get("algo_name")}/output_file.csv', bucket_name='yt-ml-demo', replace=True)
+
     return
 
 
-def get_model_predictions():
+def get_model_predictions(ml_config):
+    pre_processed_file_key = f'pre_processed_data/{ml_config.get("algo_name")}/pre_processed_file.csv'
+
+    input_file = s3.get_key(key=pre_processed_file_key, bucket_name='yt-ml-demo')
+    df = pd.read_csv(io.BytesIO(input_file.get()['Body'].read()))
+
+    df_train, df_test = train_test_split(df, train_size=0.7, test_size=0.3, random_state=100)
+
+    y_test = df_test.pop(ml_config.get("y")).to_numpy()
+    X_test = df_test.to_numpy()
+
+    s3_key = f'trained_models/{ml_config.get("algo_name")}/model.sav'
+    model_file = s3.get_key(key=s3_key, bucket_name='yt-ml-demo')
+    model = pickle.loads(model_file.get()['Body'].read())
+    # Make predictions
+    y_pred = model.predict(X_test)
+
+    final_op = []
+    for i in range(0, len(X_test)):
+        a = np.insert(X_test[i], 4, y_pred[i])
+        final_op.append(list(a))
+
+    output_df = pd.DataFrame(final_op, columns=df.columns)
+    csv_buffer = StringIO()
+    output_df.to_csv(csv_buffer, index=False)
+    s3.load_string(string_data=csv_buffer.getvalue(), key=f'output_data/{ml_config.get("algo_name")}/output_file.csv', bucket_name='yt-ml-demo', replace=True)
+
     return
 
 
@@ -170,7 +212,7 @@ def ml_model_predictions(X, y, test_size, model_name):
     # return df
 
 
-def generate_ml_dags(dag_id, ml_config, default_args, ml_config_dict):
+def generate_ml_dags(dag_id, ml_config, default_args):
     """
     :param dag_id:
     :param ml_config:
@@ -179,8 +221,8 @@ def generate_ml_dags(dag_id, ml_config, default_args, ml_config_dict):
     :return:
     """
 
-    retrieved_schedule = ml_config_dict.get('schedule')
-    retrieved_ml_algo = ml_config_dict.get('algo_name')
+    retrieved_schedule = ml_config.get('schedule')
+    retrieved_ml_algo = ml_config.get('algo_name')
     dag = DAG(dag_id, schedule_interval=retrieved_schedule, default_args=default_args, catchup=False, tags=['ML'])
     with dag:
         ml_task = PythonOperator(
@@ -202,7 +244,7 @@ def generate_ml_dags(dag_id, ml_config, default_args, ml_config_dict):
             task_id='preprocess_and_clean_data',
             provide_context=True,
             python_callable=preprocess,
-            op_args=[ml_config.get('algo_name')],
+            op_args=[ml_config],
             dag=dag
         )
         check_for_file.set_downstream(pre_process_data)
@@ -211,9 +253,18 @@ def generate_ml_dags(dag_id, ml_config, default_args, ml_config_dict):
             task_id='train_data',
             provide_context=True,
             python_callable=train_model,
-            op_args=[ml_config.get('algo_name')],
+            op_args=[ml_config],
             dag=dag
         )
         pre_process_data.set_downstream(train_data)
+
+        predict_data = PythonOperator(
+            task_id='get_model_predictions',
+            provide_context=True,
+            python_callable=get_model_predictions,
+            op_args=[ml_config],
+            dag=dag
+        )
+        train_data.set_downstream(predict_data)
 
     return dag

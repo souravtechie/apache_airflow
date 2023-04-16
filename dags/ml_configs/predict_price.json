@@ -1,4 +1,7 @@
 {
   "schedule": "30 5 * * *",
-  "algo_name": "LinearRegression"
+  "algo_name": "LinearRegression",
+  "binary_map": ["mainroad", "guestroom", "basement", "hotwaterheating", "airconditioning", "prefarea"],
+  "dummies": ["furnishingstatus"],
+  "y": "price"
 }

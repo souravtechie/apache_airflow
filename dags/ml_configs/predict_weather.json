@@ -1,4 +1,0 @@
-{
-  "schedule": "30 8 * * *",
-  "algo_name": "DecisionTreeClassifier"
-}

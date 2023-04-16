@@ -25,7 +25,6 @@ for ml_config in os.listdir(f"{dag_folder}/ml_configs"):
         dag_id=dag_id,
         ml_config=ml_config_dict,
         default_args=default_args,
-        ml_config_dict=ml_config_dict
     )
 
     if returned_dag is not None:

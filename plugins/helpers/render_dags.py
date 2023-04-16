@@ -12,27 +12,16 @@ import pandas as pd
 from airflow.hooks.S3_hook import S3Hook
 from airflow import DAG, settings
 from airflow.operators.python_operator import PythonOperator
-from sklearn.preprocessing import MinMaxScaler
 
-# tasks: get_training_data_from_s3, train_model, put_predicted_data_to_s3
-
-# Load dataset
-iris = data_sets.load_iris()
-X, y = iris['data'], iris['target']
-
-
-# TODO: paramterize the get_files func (rename func)
-# TODO: write output to S3
-# TODO: basic transformation on input data
 s3 = S3Hook(aws_conn_id='s3_test')
 s3.get_conn()
 
-def get_modeling_data(model_name, **kwargs):
-
-    bucket = s3.get_bucket(
-        bucket_name='yt-ml-demo'
-    )
-    # files = s3.list_keys(bucket_name='yt-ml-demo', prefix='input_data/')
+def get_modeling_data(model_name):
+    """
+    This function returns the S3 key of the input file
+    :param model_name:
+    :return:
+    """
     key = f'input_data/{model_name}/input_file.csv'
     input_file = s3.check_for_key(key=key, bucket_name='yt-ml-demo')
 
@@ -46,17 +35,15 @@ def get_modeling_data(model_name, **kwargs):
 def ternary_map(x):
     return x.map({"Setosa": 0, "Versicolor": 2, "Virginica": 3})
 
-
-
 def binary_map(x):
     return x.map({'yes': 1, "no": 0})
 
 
 def preprocess(model_config, **kwargs):
     """
-
-    :param ti:
-    :return:
+    This function creates a pre-processed file from the input data and stores it to S3
+    :param model_config:
+    :return: None
     """
     s3 = S3Hook(aws_conn_id='s3_test')
     s3.get_conn()
@@ -90,12 +77,11 @@ def preprocess(model_config, **kwargs):
     s3.load_string(string_data=csv_buffer.getvalue(), key=f'pre_processed_data/{model_config.get("algo_name")}/pre_processed_file.csv', bucket_name='yt-ml-demo', replace=True)
 
 
-
-def train_model(ml_config, **kwargs):
+def train_model(ml_config):
     """
-
-    :param ti:
-    :return:
+    This function creates a trained model from the pre-processed data and stores the model to S3 as a pickle file
+    :param ml_config:
+    :return: None
     """
     pre_processed_file_key = f'pre_processed_data/{ml_config.get("algo_name")}/pre_processed_file.csv'
 
@@ -109,12 +95,6 @@ def train_model(ml_config, **kwargs):
 
     y_test = df_test.pop(ml_config.get("y")).to_numpy()
     X_test = df_test.to_numpy()
-
-    print(f"X_train = \n{len(X_train)}")
-    print(f"y_train = \n{len(y_train)}")
-    print(f"X_test = \n{len(X_test)}")
-    print(f"y_test = \n{len(y_test)}")
-
 
     model = eval(ml_config.get("algo_name") + '()')
 
@@ -149,6 +129,11 @@ def train_model(ml_config, **kwargs):
 
 
 def get_model_predictions(ml_config):
+    """
+    This function reads a model from S3 and makes predictions
+    :param ml_config:
+    :return: None
+    """
     pre_processed_file_key = f'pre_processed_data/{ml_config.get("algo_name")}/pre_processed_file.csv'
 
     input_file = s3.get_key(key=pre_processed_file_key, bucket_name='yt-ml-demo')
@@ -162,6 +147,7 @@ def get_model_predictions(ml_config):
     s3_key = f'trained_models/{ml_config.get("algo_name")}/model.sav'
     model_file = s3.get_key(key=s3_key, bucket_name='yt-ml-demo')
     model = pickle.loads(model_file.get()['Body'].read())
+
     # Make predictions
     y_pred = model.predict(X_test)
 
@@ -178,60 +164,19 @@ def get_model_predictions(ml_config):
     return
 
 
-def ml_model_predictions(X, y, test_size, model_name):
-    """
-
-    :param X: Input Numpy array
-    :param y: Output
-    :param model_name:
-    :param test_size:
-    :return:
-    """
-    print(iris)
-
-    # Split data into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
-
-    # Create model
-    model = eval(model_name + '()')
-
-    # Train model
-    model.fit(X_train, y_train)
-
-    # Make predictions
-    y_pred = model.predict(X_test)
-
-    final_op = []
-    for i in range(0, len(X_test)):
-        a = np.insert(X_test[i], 4, y_pred[i])
-        final_op.append(list(a))
-
-    df = pd.DataFrame(final_op)
-    logging.info('df = %s', df)
-
-    # return df
-
-
 def generate_ml_dags(dag_id, ml_config, default_args):
     """
     :param dag_id:
     :param ml_config:
     :param default_args:
-    :param ml_config_dict:
-    :return:
+    :return: the ML dag
     """
 
     retrieved_schedule = ml_config.get('schedule')
     retrieved_ml_algo = ml_config.get('algo_name')
     dag = DAG(dag_id, schedule_interval=retrieved_schedule, default_args=default_args, catchup=False, tags=['ML'])
     with dag:
-        ml_task = PythonOperator(
-            task_id='ml_test',
-            provide_context=True,
-            python_callable=ml_model_predictions,
-            op_args=[X, y, 0.2, retrieved_ml_algo],
-            dag=dag
-        )
+
         check_for_file = PythonOperator(
             task_id='get_modeling_data',
             provide_context=True,
@@ -259,7 +204,7 @@ def generate_ml_dags(dag_id, ml_config, default_args):
         pre_process_data.set_downstream(train_data)
 
         predict_data = PythonOperator(
-            task_id='get_model_predictions',
+            task_id='make_model_predictions',
             provide_context=True,
             python_callable=get_model_predictions,
             op_args=[ml_config],

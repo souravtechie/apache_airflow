@@ -16,6 +16,13 @@ from airflow.operators.python_operator import PythonOperator
 s3 = S3Hook(aws_conn_id='s3_test')
 s3.get_conn()
 
+def ternary_map(x):
+    return x.map({"Setosa": 0, "Versicolor": 2, "Virginica": 3})
+
+def binary_map(x):
+    return x.map({'yes': 1, "no": 0})
+
+
 def get_modeling_data(model_config):
     """
     This function returns the S3 key of the input file
@@ -31,13 +38,6 @@ def get_modeling_data(model_config):
     else:
         logging.info("No input data found")
         return None
-
-
-def ternary_map(x):
-    return x.map({"Setosa": 0, "Versicolor": 2, "Virginica": 3})
-
-def binary_map(x):
-    return x.map({'yes': 1, "no": 0})
 
 
 def preprocess(model_config, **kwargs):
@@ -114,17 +114,20 @@ def train_model(ml_config):
     s3.load_file(filename=filename, key=s3_key, bucket_name='yt-ml-demo')
 
     # Make predictions
-    y_pred = model.predict(X_test)
-
-    final_op = []
-    for i in range(0, len(X_test)):
-        a = np.insert(X_test[i], 4, y_pred[i])
-        final_op.append(list(a))
-
-    output_df = pd.DataFrame(final_op, columns=df.columns)
-    csv_buffer = StringIO()
-    output_df.to_csv(csv_buffer, index=False)
-    s3.load_string(string_data=csv_buffer.getvalue(), key=f'output_data/{ml_config.get("algo_name")}/output_file.csv', bucket_name='yt-ml-demo', replace=True)
+    # TODO: Need to only train model in this func
+    # TODO: making predictions and storing to S# should be done in the next func.
+    # TODO: Update the script after making the code change.
+    # y_pred = model.predict(X_test)
+    #
+    # final_op = []
+    # for i in range(0, len(X_test)):
+    #     a = np.insert(X_test[i], 4, y_pred[i])
+    #     final_op.append(list(a))
+    #
+    # output_df = pd.DataFrame(final_op, columns=df.columns)
+    # csv_buffer = StringIO()
+    # output_df.to_csv(csv_buffer, index=False)
+    # s3.load_string(string_data=csv_buffer.getvalue(), key=f'output_data/{ml_config.get("algo_name")}/output_file.csv', bucket_name='yt-ml-demo', replace=True)
 
     return
 
@@ -145,17 +148,22 @@ def get_model_predictions(ml_config):
     y_test = df_test.pop(ml_config.get("y")).to_numpy()
     X_test = df_test.to_numpy()
 
+
     s3_key = f'trained_models/{ml_config.get("algo_name")}/model.sav'
     model_file = s3.get_key(key=s3_key, bucket_name='yt-ml-demo')
     model = pickle.loads(model_file.get()['Body'].read())
 
     # Make predictions
     y_pred = model.predict(X_test)
+    print(f"y_pred = {y_pred}")
+    col_name_list = df.columns.values.tolist()
+    y_index = col_name_list.index(ml_config.get("y"))
 
     final_op = []
     for i in range(0, len(X_test)):
-        a = np.insert(X_test[i], 4, y_pred[i])
+        a = np.insert(X_test[i], y_index, y_pred[i])
         final_op.append(list(a))
+
 
     output_df = pd.DataFrame(final_op, columns=df.columns)
     csv_buffer = StringIO()
@@ -167,14 +175,14 @@ def get_model_predictions(ml_config):
 
 def generate_ml_dags(dag_id, ml_config, default_args):
     """
-    :param dag_id:
-    :param ml_config:
+    :param dag_id: Id/name of the the DAG
+    :param ml_config: config dictionary
     :param default_args:
     :return: the ML dag
     """
 
     retrieved_schedule = ml_config.get('schedule')
-    retrieved_ml_algo = ml_config.get('algo_name')
+    # retrieved_ml_algo = ml_config.get('algo_name')
     dag = DAG(dag_id, schedule_interval=retrieved_schedule, default_args=default_args, catchup=False, tags=['ML'])
     with dag:
 

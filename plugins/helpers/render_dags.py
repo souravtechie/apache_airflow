@@ -1,6 +1,6 @@
 import io
 import logging
-from io import StringIO # python3; python2: BytesIO
+from io import StringIO
 import pickle
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
@@ -48,7 +48,7 @@ def preprocess(model_config, **kwargs):
     """
     s3 = S3Hook(aws_conn_id='s3_test')
     s3.get_conn()
-    #file_key = ti.xcom_pull(key="file_key", task_ids="get_modeling_data")
+
     file_key = kwargs['ti'].xcom_pull(task_ids="get_modeling_data")['file_key']
     logging.info(f"file_key = %s", file_key)
 
@@ -94,9 +94,6 @@ def train_model(ml_config):
     y_train = df_train.pop(ml_config.get("y")).to_numpy()
     X_train = df_train.to_numpy()
 
-    y_test = df_test.pop(ml_config.get("y")).to_numpy()
-    X_test = df_test.to_numpy()
-
     model = eval(ml_config.get("algo_name") + '()')
 
     # Train model
@@ -112,22 +109,6 @@ def train_model(ml_config):
 
     pickle.dump(model, open(filename, 'wb'))
     s3.load_file(filename=filename, key=s3_key, bucket_name='yt-ml-demo')
-
-    # Make predictions
-    # TODO: Need to only train model in this func
-    # TODO: making predictions and storing to S# should be done in the next func.
-    # TODO: Update the script after making the code change.
-    # y_pred = model.predict(X_test)
-    #
-    # final_op = []
-    # for i in range(0, len(X_test)):
-    #     a = np.insert(X_test[i], 4, y_pred[i])
-    #     final_op.append(list(a))
-    #
-    # output_df = pd.DataFrame(final_op, columns=df.columns)
-    # csv_buffer = StringIO()
-    # output_df.to_csv(csv_buffer, index=False)
-    # s3.load_string(string_data=csv_buffer.getvalue(), key=f'output_data/{ml_config.get("algo_name")}/output_file.csv', bucket_name='yt-ml-demo', replace=True)
 
     return
 
@@ -155,7 +136,8 @@ def get_model_predictions(ml_config):
 
     # Make predictions
     y_pred = model.predict(X_test)
-    print(f"y_pred = {y_pred}")
+
+    # Get index of Y column in the inout data
     col_name_list = df.columns.values.tolist()
     y_index = col_name_list.index(ml_config.get("y"))
 

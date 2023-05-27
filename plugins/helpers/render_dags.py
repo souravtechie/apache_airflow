@@ -2,10 +2,6 @@ import io
 import logging
 from io import StringIO
 import pickle
-from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn import datasets as data_sets
 from sklearn.model_selection import train_test_split
 import numpy as np
 import pandas as pd
@@ -18,6 +14,7 @@ s3.get_conn()
 
 def ternary_map(x):
     return x.map({"Setosa": 0, "Versicolor": 2, "Virginica": 3})
+
 
 def binary_map(x):
     return x.map({'yes': 1, "no": 0})

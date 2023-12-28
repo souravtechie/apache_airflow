@@ -1,0 +1,10 @@
+--find-links /usr/local/airflow/plugins
+--no-index
+--constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.4.3/constraints-3.10.txt"
+apache-airflow-providers-snowflake==3.3.0
+apache-airflow-providers-mysql==3.2.1
+pandas==1.5.1
+scikit-learn==1.2.2
+google-api-python-client==1.12.11
+google-auth-httplib2==0.1.0
+google-auth-oauthlib==0.7.1

@@ -1,8 +1,7 @@
 version: '3.7'
 services:
     postgres:
-        platform: linux/amd64
-        image: postgres:10-alpine
+        image: postgres:11-alpine
         environment:
             - POSTGRES_USER=airflow
             - POSTGRES_PASSWORD=airflow
@@ -15,8 +14,7 @@ services:
             - "${PWD}/db-data:/var/lib/postgresql/data"
 
     local-runner:
-        #platform: linux/amd64
-        image: amazon/mwaa-local:2_4
+        image: amazon/mwaa-local:2_7
         restart: always
         depends_on:
             - postgres
@@ -31,6 +29,7 @@ services:
             - "${PWD}/dags:/usr/local/airflow/dags"
             - "${PWD}/plugins:/usr/local/airflow/plugins"
             - "${PWD}/requirements:/usr/local/airflow/requirements"
+            - "${PWD}/startup_script:/usr/local/airflow/startup"
         ports:
             - "8080:8080"
         command: local-runner

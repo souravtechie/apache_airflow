@@ -96,6 +96,7 @@ def get_video_details(youtube, video_ids):
 
     return all_video_info
 
+
 def call_yt_apis(*args, **kwargs):
     # Get credentials and create an API client
     youtube = build(
@@ -115,8 +116,6 @@ def call_yt_apis(*args, **kwargs):
 
     df.to_csv(csv_buffer, index=False)
     s3.load_string(string_data=csv_buffer.getvalue(), key='yt_api_data/test_csv_file.csv', bucket_name='yt-bucket-demo', replace=True)
-
-
 
 
 

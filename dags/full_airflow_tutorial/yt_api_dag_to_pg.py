@@ -3,15 +3,15 @@ import pandas as pd
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from googleapiclient.discovery import build
 from airflow.hooks.S3_hook import S3Hook
 from io import StringIO
+from helpers.constants import CREDENTIALS, MY_CHANNEL_ID
 
 api_service_name = "youtube"
 api_version = "v3"
-credentials = ''
-my_channel_id = ''
+credentials = CREDENTIALS
+my_channel_id = MY_CHANNEL_ID
 
 def get_channel_stats(youtube):
     """
@@ -94,9 +94,12 @@ def get_video_details(youtube, video_ids):
                     except:
                         video_info[v] = None
 
+                video_info['loadTimestamp'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
             all_video_info.append(video_info)
 
     return all_video_info
+
 
 def call_yt_apis(*args, **kwargs):
     # Get credentials and create an API client
@@ -116,7 +119,7 @@ def call_yt_apis(*args, **kwargs):
     s3 = S3Hook(aws_conn_id='s3_test')
     csv_buffer = StringIO()
 
-    df.to_csv(csv_buffer, index=False)
+    df.to_csv(csv_buffer, index=False, header=False)
 
     #Store file to S3
     s3.load_string(string_data=csv_buffer.getvalue(), key='yt_api_data/test_csv_file.csv', bucket_name='yt-bucket-demo', replace=True)
@@ -126,8 +129,7 @@ def load_s3_file_to_pg():
     pg_hook = PostgresHook(postgres_conn_id='yt_pg')
     s3_hook = S3Hook(aws_conn_id='s3_test')
 
-    local_file = s3_hook.download_file(key='yt_api_data/test_csv_file.csv', bucket_name='yt-bucket-demo', local_path='testing/', preserve_file_name=True)
-    #local_file = s3_hook.get_conn().download_file(Key='yt_api_data/test_csv_file.csv', Filename='test_csv_file_local.csv', Bucket='yt-bucket-demo')
+    local_file = s3_hook.download_file(key='yt_api_data/test_csv_file.csv', bucket_name='yt-bucket-demo', local_path='local/', preserve_file_name=True)
 
     print(f'type of local file = {type(local_file)}')
     print(f'Local file = {local_file}')
@@ -138,10 +140,9 @@ def load_s3_file_to_pg():
     with open(local_file, 'r') as f:
         print(f'file contents are: {f.read()}')
 
-    pg_cursor.copy_from(open(local_file, 'r'), 'video_details', sep=',')
+    pg_cursor.copy_from(open(local_file, 'r'), 'video_details', sep=',', columns=('video_id', 'view_count', 'like_count', 'comment_count', 'load_timestamp'))
     conn.commit()
-
-
+    conn.close()
 
 
 # Define the DAG

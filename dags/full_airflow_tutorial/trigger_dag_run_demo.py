@@ -4,6 +4,7 @@ from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from custom_operators.my_postgres_operator import MyPostgresOperator
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from googleapiclient.discovery import build
 from airflow.hooks.S3_hook import S3Hook
 from io import StringIO
@@ -149,7 +150,7 @@ def load_s3_file_to_pg():
 
 # Define the DAG
 with DAG(
-    dag_id="youtube_views_data_to_S3_custom",
+    dag_id="youtube_views_data_trigger",
     start_date=datetime(2023, 1, 1),
     schedule_interval="0 10 * * *",
     catchup=False,
@@ -177,5 +178,11 @@ with DAG(
         postgres_conn_id='yt_pg',
     )
 
+    trigger_task = TriggerDagRunOperator(
+        task_id="trigger_ml_demo_dag",
+        trigger_dag_id="ml_demo_dag",
+    )
+
     transfer_s3_to_sql.set_upstream(cleanup_query_task)
     test_sql.set_upstream(transfer_s3_to_sql)
+    trigger_task.set_upstream(test_sql)

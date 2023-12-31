@@ -67,9 +67,9 @@ def get_video_details(youtube, video_ids):
         response = request.execute()
 
         for video in response['items']:
-            stats_to_keep = {#'snippet': ['channelTitle', 'title', 'description', 'tags', 'publishedAt'],
+            stats_to_keep = {'snippet': ['title', 'publishedAt'],
                              'statistics': ['viewCount', 'likeCount', 'commentCount'],
-                             #'contentDetails': ['duration', 'definition', 'caption']
+                             #'contentDetails': ['duration']
                              }
             video_info = {}
             video_info['video_id'] = video['id']

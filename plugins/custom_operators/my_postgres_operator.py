@@ -1,3 +1,4 @@
+import os
 from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.postgres.operators.postgres import PostgresOperator
@@ -13,7 +14,6 @@ class MyPostgresOperator(PostgresOperator):
         postgres_conn_id='postgres_default',
         full_s3_key=None,
         pg_table_name=None,
-        column_list=None,
         aws_conn_id='aws_default',
         **kwargs,
     ) -> None:
@@ -23,7 +23,6 @@ class MyPostgresOperator(PostgresOperator):
         self.full_s3_key = full_s3_key
         self.aws_conn_id = aws_conn_id
         self.pg_table_name = pg_table_name
-        self.column_list = column_list
 
     def execute(self, context: 'Context'):
         if self.pg_table_name is not None and self.full_s3_key is not None:
@@ -43,11 +42,12 @@ class MyPostgresOperator(PostgresOperator):
             pg_conn = self.pg_hook.get_conn()
             pg_cursor = pg_conn.cursor()
 
-            with open(local_file, 'r') as f:
-                print(f'file contents are: {f.read()}')
+            with open(local_file) as f:
+                pg_cursor.copy_expert('COPY video_details FROM stdin WITH CSV', f)
 
-            pg_cursor.copy_from(open(local_file, 'r'), self.pg_table_name, sep=',',
-                                columns=self.column_list)
+            os.remove(local_file)
+            print(f"File {local_file} has been deleted")
+
             pg_conn.commit()
             pg_conn.close()
         else:

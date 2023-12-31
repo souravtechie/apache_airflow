@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 import pandas as pd
 from airflow import DAG
@@ -80,9 +81,9 @@ def get_video_details(youtube, video_ids):
         response = request.execute()
 
         for video in response['items']:
-            stats_to_keep = {#'snippet': ['channelTitle', 'title', 'description', 'tags', 'publishedAt'],
+            stats_to_keep = {'snippet': ['title', 'publishedAt'],
                              'statistics': ['viewCount', 'likeCount', 'commentCount'],
-                             #'contentDetails': ['duration', 'definition', 'caption']
+                             #'contentDetails': ['duration']
                              }
             video_info = {}
             video_info['video_id'] = video['id']
@@ -138,9 +139,15 @@ def load_s3_file_to_pg():
     pg_cursor = conn.cursor()
 
     with open(local_file, 'r') as f:
-        print(f'file contents are: {f.read()}')
+        print(f'file contents are: \n{f.read()}')
 
-    pg_cursor.copy_from(open(local_file, 'r'), 'video_details', sep=',', columns=('video_id', 'view_count', 'like_count', 'comment_count', 'load_timestamp'))
+    with open(local_file) as f:
+        pg_cursor.copy_expert('COPY video_details FROM stdin WITH CSV', f)
+
+    #pg_cursor.copy_from(open(local_file, 'r'), 'video_details', sep=',', columns=('video_id', 'title', 'publish_date', 'load_timestamp', 'view_count', 'like_count', 'comment_count'))
+    os.remove(local_file)
+    print(f"File {local_file} has been deleted")
+
     conn.commit()
     conn.close()
 

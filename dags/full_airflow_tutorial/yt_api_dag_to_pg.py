@@ -154,7 +154,7 @@ def load_s3_file_to_pg():
 
 # Define the DAG
 with DAG(
-    dag_id="youtube_views_data_to_S3_2",
+    dag_id="youtube_views_data_to_S3_hooks",
     start_date=datetime(2023, 1, 1),
     schedule_interval="0 10 * * *",
     catchup=False,

@@ -58,16 +58,6 @@
                        - Name: SourceArtifact
                      Namespace: "SourceVariables"
                      RunOrder: 1
-               - Name: "Approval"
-                 Actions:
-                   - Name: Approval
-                     ActionTypeId:
-                       Category: "Approval"
-                       Owner: "AWS"
-                       Provider: "Manual"
-                       Version: "1"
-                     Configuration:
-                       NotificationArn: "arn:aws:sns:us-east-1:078342479505:SlackManualApprove"
                - Name: Deploy
                  Actions:
                    - Name: Build

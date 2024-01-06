@@ -1,4 +1,15 @@
+from datetime import datetime
+import pandas as pd
+from airflow import DAG
+from airflow.operators.python_operator import PythonOperator
 from googleapiclient.discovery import build
+from airflow.hooks.S3_hook import S3Hook
+from io import StringIO
+
+api_service_name = "youtube"
+api_version = "v3"
+credentials = ''
+my_channel_id = ''
 
 def get_channel_stats(youtube):
     """
@@ -86,11 +97,7 @@ def get_video_details(youtube, video_ids):
     return all_video_info
 
 
-if __name__ == "__main__":
-    api_service_name = "youtube"
-    api_version = "v3"
-    credentials = ''
-    my_channel_id = ''
+def call_yt_apis(*args, **kwargs):
     # Get credentials and create an API client
     youtube = build(
         api_service_name, api_version, developerKey=credentials)
@@ -101,3 +108,29 @@ if __name__ == "__main__":
 
     for vid in vids_details:
         print(vid)
+
+    df = pd.DataFrame(vids_details)
+
+    s3 = S3Hook(aws_conn_id='s3_test')
+    csv_buffer = StringIO()
+
+    df.to_csv(csv_buffer, index=False)
+    s3.load_string(string_data=csv_buffer.getvalue(), key='yt_api_data/test_csv_file.csv', bucket_name='yt-bucket-demo', replace=True)
+
+
+
+# Define the DAG
+with DAG(
+    dag_id="youtube_views_data_to_S3_only",
+    start_date=datetime(2023, 1, 1),
+    schedule_interval="0 10 * * *",
+    catchup=False,
+    tags=['YT demo'],
+) as dag:
+
+    # Define Postgres task
+    cleanup_query_task = PythonOperator(
+        task_id='youtube_to_s3',
+        python_callable=call_yt_apis
+    )
+

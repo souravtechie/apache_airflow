@@ -17,10 +17,10 @@
      },
      {
        "ParameterKey": "CodePipelineName",
-       "ParameterValue": "techtalksourav-airflow-cicd"
+       "ParameterValue": "tts-airflow-cicd"
      },
      {
        "ParameterKey": "CodeBuildProjectName",
-       "ParameterValue": "techtalksourav-airflow-prj"
+       "ParameterValue": "tts-airflow-prj"
        }
  ]

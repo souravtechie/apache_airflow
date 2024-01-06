@@ -1,0 +1,26 @@
+ [
+   {
+     "ParameterKey": "s3BucketNameProd",
+     "ParameterValue": "techtalksourav-airflow"
+   },
+     {
+       "ParameterKey": "GitHubRepoName",
+       "ParameterValue": "apache_airflow"
+     },
+     {
+       "ParameterKey": "GitHubRepoOwner",
+       "ParameterValue": "souravtechie"
+     },
+     {
+       "ParameterKey": "GitHubRepoToken",
+       "ParameterValue": ""
+     },
+     {
+       "ParameterKey": "CodePipelineName",
+       "ParameterValue": "techtalksourav-airflow-cicd"
+     },
+     {
+       "ParameterKey": "CodeBuildProjectName",
+       "ParameterValue": "techtalksourav-airflow-prj"
+       }
+ ]

@@ -151,7 +151,7 @@ def load_s3_file_to_pg():
 
 # Define the DAG
 with DAG(
-    dag_id="email_alert",
+    dag_id="email_alerting",
     start_date=datetime(2023, 1, 1),
     schedule_interval="0 10 * * *",
     catchup=False,

@@ -154,7 +154,7 @@ def load_s3_file_to_pg():
 
 # Define the DAG
 with DAG(
-    dag_id="youtube_views_data_to_S3_hooks",
+    dag_id="youtube_views_data_to_pg_hooks",
     start_date=datetime(2023, 1, 1),
     schedule_interval="0 10 * * *",
     catchup=False,
@@ -168,7 +168,7 @@ with DAG(
     )
 
     transfer_s3_to_sql = PythonOperator(
-        task_id='yt_pg',
+        task_id='s3_to_postgres',
         python_callable=load_s3_file_to_pg,
         provide_context=True
     )

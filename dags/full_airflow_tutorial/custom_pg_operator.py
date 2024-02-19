@@ -149,7 +149,7 @@ def load_s3_file_to_pg():
 
 # Define the DAG
 with DAG(
-    dag_id="youtube_views_data_to_S3_custom",
+    dag_id="youtube_views_data_to_pg_custom",
     start_date=datetime(2023, 1, 1),
     schedule_interval="0 10 * * *",
     catchup=False,
@@ -163,7 +163,7 @@ with DAG(
     )
 
     transfer_s3_to_sql = MyPostgresOperator(
-        task_id='yt_pg',
+        task_id='s3_to_postgres',
         sql='',
         postgres_conn_id='yt_pg',
         full_s3_key='yt-bucket-demo/yt_api_data/test_csv_file.csv',

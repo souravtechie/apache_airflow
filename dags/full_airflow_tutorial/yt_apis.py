@@ -4,11 +4,12 @@ all videos from a YT channel using YT apis
 """
 
 from googleapiclient.discovery import build
+from helpers.constants import CREDENTIALS, MY_CHANNEL_ID
 
 api_service_name = "youtube"
 api_version = "v3"
-credentials = ''
-my_channel_id = ''
+credentials = CREDENTIALS
+my_channel_id = MY_CHANNEL_ID
 
 
 def get_channel_stats(youtube):

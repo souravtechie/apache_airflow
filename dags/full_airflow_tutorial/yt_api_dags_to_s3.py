@@ -5,11 +5,12 @@ from airflow.operators.python_operator import PythonOperator
 from googleapiclient.discovery import build
 from airflow.hooks.S3_hook import S3Hook
 from io import StringIO
+from helpers.constants import CREDENTIALS, MY_CHANNEL_ID
 
 api_service_name = "youtube"
 api_version = "v3"
-credentials = ''
-my_channel_id = ''
+credentials = CREDENTIALS
+my_channel_id = MY_CHANNEL_ID
 
 def get_channel_stats(youtube):
     """

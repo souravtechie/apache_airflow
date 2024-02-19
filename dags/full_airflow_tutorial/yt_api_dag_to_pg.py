@@ -132,24 +132,24 @@ def load_s3_file_to_pg():
 
     local_file = s3_hook.download_file(key='yt_api_data/test_csv_file.csv', bucket_name='yt-bucket-demo', local_path='local/', preserve_file_name=True)
 
-    print(f'type of local file = {type(local_file)}')
-    print(f'Local file = {local_file}')
+    with open(local_file, 'r') as f:
+        print(f'file contents are: \n{f.read()}')
+
 
     conn = pg_hook.get_conn()
     pg_cursor = conn.cursor()
 
-    with open(local_file, 'r') as f:
-        print(f'file contents are: \n{f.read()}')
-
     with open(local_file) as f:
         pg_cursor.copy_expert('COPY video_details FROM stdin WITH CSV', f)
+
+    conn.commit()
 
     #pg_cursor.copy_from(open(local_file, 'r'), 'video_details', sep=',', columns=('video_id', 'title', 'publish_date', 'load_timestamp', 'view_count', 'like_count', 'comment_count'))
     os.remove(local_file)
     print(f"File {local_file} has been deleted")
 
-    conn.commit()
     conn.close()
+
 
 
 # Define the DAG

@@ -34,12 +34,13 @@ default_args = {
     'start_date': datetime(2022, 1, 1),
     'email_on_failure': False,
     'email_on_retry': False,
-    'retries': 1
+    'retries': 1,
+    'catchup': False
 }
 
-dag = DAG('ml_demo_dag',
+dag = DAG('xcom_demo',
           default_args=default_args,
-          schedule_interval=None)
+          schedule_interval="0 10 * * *")
 
 start_task = DummyOperator(task_id='get_youtube_data',
                            dag=dag)

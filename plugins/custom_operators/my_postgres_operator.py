@@ -27,7 +27,6 @@ class MyPostgresOperator(PostgresOperator):
     def execute(self, context: 'Context'):
         if self.pg_table_name is not None and self.full_s3_key is not None:
             # call that func
-            print('hi')
             self.pg_hook = PostgresHook(postgres_conn_id=self.postgres_conn_id, schema=self.database)
             s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
 
@@ -35,9 +34,6 @@ class MyPostgresOperator(PostgresOperator):
             s3_key = self.full_s3_key.replace(bucket_name + '/', '')
             local_file = s3_hook.download_file(key=s3_key, bucket_name=bucket_name,
                                                local_path='local/', preserve_file_name=True)
-
-            print(f'type of local file = {type(local_file)}')
-            print(f'Local file = {local_file}')
 
             pg_conn = self.pg_hook.get_conn()
             pg_cursor = pg_conn.cursor()

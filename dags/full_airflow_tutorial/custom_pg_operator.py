@@ -171,11 +171,12 @@ with DAG(
         aws_conn_id='s3_test'
     )
 
-    test_sql = MyPostgresOperator(
-        task_id='yt_pg_test',
-        sql='SELECT * FROM video_details;',
-        postgres_conn_id='yt_pg',
-    )
-
     transfer_s3_to_sql.set_upstream(cleanup_query_task)
-    test_sql.set_upstream(transfer_s3_to_sql)
+
+    # validate_sql = MyPostgresOperator(
+    #     task_id='yt_pg_test',
+    #     sql='SELECT * FROM video_details;',
+    #     postgres_conn_id='yt_pg',
+    # )
+    #
+    # validate_sql.set_upstream(transfer_s3_to_sql)

@@ -39,7 +39,7 @@ class MyPostgresOperator(PostgresOperator):
             pg_cursor = pg_conn.cursor()
 
             with open(local_file) as f:
-                pg_cursor.copy_expert('COPY video_details FROM stdin WITH CSV', f)
+                pg_cursor.copy_expert(f'COPY {self.pg_table_name} FROM stdin WITH CSV', f)
 
             os.remove(local_file)
             print(f"File {local_file} has been deleted")

@@ -155,14 +155,14 @@ def load_s3_file_to_pg():
 # Define the DAG
 with DAG(
     dag_id="youtube_views_data_to_pg_hooks",
-    start_date=datetime(2023, 1, 1),
+    start_date=datetime(2024, 1, 1),
     schedule_interval="0 10 * * *",
     catchup=False,
     tags=['YT demo'],
 ) as dag:
 
     # Define Postgres task
-    cleanup_query_task = PythonOperator(
+    youtube_to_s3 = PythonOperator(
         task_id='youtube_to_s3',
         python_callable=call_yt_apis
     )
@@ -173,4 +173,4 @@ with DAG(
         provide_context=True
     )
 
-    transfer_s3_to_sql.set_upstream(cleanup_query_task)
+    transfer_s3_to_sql.set_upstream(youtube_to_s3)

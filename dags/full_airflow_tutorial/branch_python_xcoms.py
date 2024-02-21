@@ -14,6 +14,7 @@ def predict_views():
             '5b2ZRswqSZc': 9898,
             'DEAIUu2E24A': 123}
 
+    # Push data to XCOM
     return video_scores
 
 
@@ -23,7 +24,7 @@ def branch_func(**kwargs):
     length = len(xcom_value)
 
     if sum(xcom_value.values())*1.0/length <= 3500:
-        return 'run_instagram_ads_campaign'
+        return 'run_ad_campaign'
     else:
         return 'stop_task'
 
@@ -61,7 +62,7 @@ branch_operator = BranchPythonOperator(
 end_task = DummyOperator(task_id='end_task',
                          dag=dag)
 
-trigger_ig_campaign = DummyOperator(task_id='run_instagram_ads_campaign',
+trigger_ig_campaign = DummyOperator(task_id='run_ad_campaign',
                                     dag=dag)
 
 start_task >> preprocess >> views_prediction >> branch_operator

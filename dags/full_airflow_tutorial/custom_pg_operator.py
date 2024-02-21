@@ -126,27 +126,6 @@ def call_yt_apis(*args, **kwargs):
     s3.load_string(string_data=csv_buffer.getvalue(), key='yt_api_data/test_csv_file.csv', bucket_name='yt-bucket-demo', replace=True)
 
 
-def load_s3_file_to_pg():
-    pg_hook = PostgresHook(postgres_conn_id='yt_pg')
-    s3_hook = S3Hook(aws_conn_id='s3_test')
-
-    local_file = s3_hook.download_file(key='yt_api_data/test_csv_file.csv', bucket_name='yt-bucket-demo', local_path='local/', preserve_file_name=True)
-    #local_file = s3_hook.get_conn().download_file(Key='yt_api_data/test_csv_file.csv', Filename='test_csv_file_local.csv', Bucket='yt-bucket-demo')
-
-    print(f'type of local file = {type(local_file)}')
-    print(f'Local file = {local_file}')
-
-    conn = pg_hook.get_conn()
-    pg_cursor = conn.cursor()
-
-    with open(local_file, 'r') as f:
-        print(f'file contents are: {f.read()}')
-
-    pg_cursor.copy_from(open(local_file, 'r'), 'video_details', sep=',', columns=('video_id', 'view_count', 'like_count', 'comment_count', 'load_timestamp'))
-    conn.commit()
-    conn.close()
-
-
 # Define the DAG
 with DAG(
     dag_id="youtube_views_data_to_pg_custom",
@@ -157,7 +136,7 @@ with DAG(
 ) as dag:
 
     # Define Postgres task
-    cleanup_query_task = PythonOperator(
+    youtube_to_s3 = PythonOperator(
         task_id='youtube_to_s3',
         python_callable=call_yt_apis
     )
@@ -171,7 +150,7 @@ with DAG(
         aws_conn_id='s3_test'
     )
 
-    transfer_s3_to_sql.set_upstream(cleanup_query_task)
+    transfer_s3_to_sql.set_upstream(youtube_to_s3)
 
     # validate_sql = MyPostgresOperator(
     #     task_id='yt_pg_test',

@@ -16,6 +16,9 @@
    GitHubRepoToken:
      Type: String
 
+   Branch:
+     Type: String
+
    CodePipelineName:
      Type: String
 
@@ -48,7 +51,7 @@
                          Provider: "GitHub"
                          Version: "1"
                      Configuration:
-                         Branch: "main"
+                         Branch: ${Branch}
                          PollForSourceChanges: true
                          Repo: !Ref GitHubRepoName # Where to put repo owner and OAuthToken?
                          Owner: !Ref GitHubRepoOwner
@@ -138,7 +141,7 @@
              referenceType:
                - branch
              referenceName:
-               - main
+               - ${Branch}
          Targets:
            -
              Arn:

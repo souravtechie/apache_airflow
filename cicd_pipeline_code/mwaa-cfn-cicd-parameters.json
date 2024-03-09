@@ -16,6 +16,11 @@
        "ParameterValue": ""
      },
      {
+       "ParameterKey": "Branch",
+       "ParameterValue": "full_tutorial"
+     },
+
+     {
        "ParameterKey": "CodePipelineName",
        "ParameterValue": "tts-airflow-cicd"
      },

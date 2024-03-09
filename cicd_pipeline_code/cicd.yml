@@ -5,7 +5,7 @@
    s3BucketNameProd:
      Type: String
      Description: The S3 bucket where your DAGs are stored.
-     # aws cloudformation create-stack --stack-name airflow-CICD --template-body file://cicd.yml --parameters file://mwaa-cfn-cicd-parameters.json --capabilities CAPABILITY_IAM --capabilities CAPABILITY_NAMED_IAM --region=us-east-1
+     #aws cloudformation create-stack --stack-name airflow-CICD --template-body file://cicd.yml --parameters file://mwaa-cfn-cicd-parameters.json --capabilities CAPABILITY_IAM --capabilities CAPABILITY_NAMED_IAM --region=us-east-1
 
    GitHubRepoName:
      Type: String

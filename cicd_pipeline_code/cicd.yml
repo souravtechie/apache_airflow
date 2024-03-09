@@ -51,7 +51,7 @@
                          Provider: "GitHub"
                          Version: "1"
                      Configuration:
-                         Branch: ${Branch}
+                         Branch: !Ref Branch
                          PollForSourceChanges: true
                          Repo: !Ref GitHubRepoName # Where to put repo owner and OAuthToken?
                          Owner: !Ref GitHubRepoOwner
@@ -141,7 +141,7 @@
              referenceType:
                - branch
              referenceName:
-               - ${Branch}
+               - !Ref Branch
          Targets:
            -
              Arn:

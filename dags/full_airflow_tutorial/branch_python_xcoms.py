@@ -23,6 +23,8 @@ def branch_func(**kwargs):
     xcom_value = ti.xcom_pull(task_ids='make_weekly_views_prediction')
     length = len(xcom_value)
 
+    print(f"Avg is: { sum(xcom_value.values())*1.0/length}")
+    # Calculate average of predicted views
     if sum(xcom_value.values())*1.0/length <= 3500:
         return 'run_ad_campaign'
     else:

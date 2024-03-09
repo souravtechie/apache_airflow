@@ -1,3 +1,37 @@
+CREATE SCHEMA techtalksourav;
+
+DROP TABLE IF EXISTS techtalksourav.video_details;
+
+CREATE TABLE techtalksourav.video_details(
+      video_id text,
+      title text,
+      publish_date timestamp,
+      load_timestamp timestamp,
+      view_count numeric,
+      like_count numeric,
+      comment_count numeric
+)
+;
+
+SELECT *
+FROM techtalksourav.video_details
+;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

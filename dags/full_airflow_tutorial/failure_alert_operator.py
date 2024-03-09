@@ -1,6 +1,7 @@
 import json
+import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 import requests
 from airflow import DAG
@@ -12,30 +13,33 @@ from googleapiclient.discovery import build
 from airflow.hooks.S3_hook import S3Hook
 from io import StringIO
 from helpers.constants import CREDENTIALS, MY_CHANNEL_ID, SLACK_WEBHOOK
+from retry import retry
 
 api_service_name = "youtube"
 api_version = "v3"
 credentials = CREDENTIALS
 my_channel_id = MY_CHANNEL_ID
 
-def get_channel_stats(youtube):
+
+def get_playlist_id(youtube):
     """
     This function gets channel stats
     @param youtube: Youtube API object
-    Returns: dataframe with all channel stats for each channel ID
+    Returns: playlist ID
     """
+    try:
+        request = youtube.channels().list(
+            part="snippet,contentDetails,statistics",
+            id=my_channel_id
+        )
+        channel_response = request.execute()['items'][0]
+        playlist_id = channel_response['contentDetails']['relatedPlaylists']['uploads']
 
-    request = youtube.channels().list(
-        part="snippet,contentDetails,statistics",
-        id=my_channel_id
-    )
-    channel_response = request.execute()['items'][0]
+        return playlist_id
 
-
-    playlist_id = channel_response['contentDetails']['relatedPlaylists']['uploads']
-
-
-    return playlist_id
+    except KeyError as err:
+        logging.error('Key %s was not found in the response. Possibly credentials are invalid?', err)
+        exit(1)
 
 
 def get_video_ids(youtube, playlist_id):
@@ -106,12 +110,12 @@ def get_video_details(youtube, video_ids):
     return all_video_info
 
 
+#@retry(exceptions=Exception, tries=3, delay=3)
 def call_yt_apis(*args, **kwargs):
     # Get credentials and create an API client
-    youtube = build(
-        api_service_name, api_version, developerKey=credentials)
+    youtube = build(api_service_name, api_version, developerKey=credentials)
 
-    playlist_id = get_channel_stats(youtube)
+    playlist_id = get_playlist_id(youtube)
     video_ids = get_video_ids(youtube, playlist_id)
     vids_details = get_video_details(youtube, video_ids)
 
@@ -129,17 +133,26 @@ def call_yt_apis(*args, **kwargs):
     #Store file to S3
     s3.load_string(string_data=csv_buffer.getvalue(), key='yt_api_data/video_details.csv', bucket_name='yt-bucket-demo', replace=True)
 
+    # Testing retry
+    #raise requests.exceptions.Timeout
 
-def on_failure_callback(context):
+
+def notify_failure(context):
     webhook_url = SLACK_WEBHOOK
     slack_data = {
-        'text': f""":red_circle: DAG *{context['dag'].dag_id}*'s task *{context['task'].task_id}* has failed!!! :red_circle:"""
+        'text': f""":bangbang: DAG *{context['dag'].dag_id}*'s task *{context['task'].task_id}* has failed!!!"""
     }
 
     response = requests.post(
         webhook_url, data=json.dumps(slack_data),
         headers={'Content-Type': 'application/json'}
     )
+
+
+default_args = {
+    'retries': 2,
+    'retry_delay': timedelta(seconds=10)
+}
 
 
 # Define the DAG
@@ -149,7 +162,8 @@ with DAG(
     schedule_interval="0 10 * * *",
     catchup=False,
     tags=['YT demo'],
-    on_failure_callback=on_failure_callback
+    on_failure_callback=notify_failure,
+    default_args=default_args
 ) as dag:
 
     # Define Postgres task
@@ -164,17 +178,17 @@ with DAG(
         sql='',
         postgres_conn_id='yt_pg',
         full_s3_key='yt-bucket-demo/yt_api_data/test_csv_file.csv',
-        pg_table_name='video_detail',
+        pg_table_name='video_details',
         aws_conn_id='s3_test',
     )
 
 
-    slack_success = SlackAPIPostOperator(
-        task_id='success_alert',
+    success_notifier = SlackAPIPostOperator(
+        task_id='notify_success',
         slack_conn_id='slack_conn',
         channel='#full-airflow-tutorial',
-        text=':white_check_mark: DAG *{{ dag_id }}* ran successfully!!! :white_check_mark:'
+        text=':white_check_mark: DAG *{{ ti.dag_id }}* ran successfully!!! :white_check_mark:'
     )
 
     transfer_s3_to_sql.set_upstream(yt_apis_to_s3)
-    transfer_s3_to_sql >> slack_success
+    transfer_s3_to_sql >> success_notifier

@@ -12,7 +12,7 @@ api_version = "v3"
 credentials = CREDENTIALS
 my_channel_id = MY_CHANNEL_ID
 
-def get_channel_stats(youtube):
+def get_playlist_id(youtube):
     """
     This function gets channel stats
     @param youtube: Youtube API object
@@ -108,7 +108,7 @@ def call_yt_apis(*args, **kwargs):
     youtube = build(
         api_service_name, api_version, developerKey=credentials)
 
-    playlist_id = get_channel_stats(youtube)
+    playlist_id = get_playlist_id(youtube)
     video_ids = get_video_ids(youtube, playlist_id)
     vids_details = get_video_details(youtube, video_ids)
 

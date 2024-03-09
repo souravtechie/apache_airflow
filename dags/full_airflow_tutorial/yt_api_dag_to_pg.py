@@ -14,7 +14,7 @@ api_version = "v3"
 credentials = CREDENTIALS
 my_channel_id = MY_CHANNEL_ID
 
-def get_channel_stats(youtube):
+def get_playlist_id(youtube):
     """
     This function gets channel stats
     @param youtube: Youtube API object
@@ -107,7 +107,7 @@ def call_yt_apis(*args, **kwargs):
     youtube = build(
         api_service_name, api_version, developerKey=credentials)
 
-    playlist_id = get_channel_stats(youtube)
+    playlist_id = get_playlist_id(youtube)
     video_ids = get_video_ids(youtube, playlist_id)
     vids_details = get_video_details(youtube, video_ids)
 
@@ -123,14 +123,16 @@ def call_yt_apis(*args, **kwargs):
     df.to_csv(csv_buffer, index=False, header=False)
 
     #Store file to S3
-    s3.load_string(string_data=csv_buffer.getvalue(), key='yt_api_data/test_csv_file.csv', bucket_name='yt-bucket-demo', replace=True)
+    s3.load_string(string_data=csv_buffer.getvalue(), key='yt_api_data/test_csv_file.csv',
+                   bucket_name='yt-bucket-demo', replace=True)
 
 
 def load_s3_file_to_pg():
     pg_hook = PostgresHook(postgres_conn_id='yt_pg')
     s3_hook = S3Hook(aws_conn_id='s3_test')
 
-    local_file = s3_hook.download_file(key='yt_api_data/test_csv_file.csv', bucket_name='yt-bucket-demo', local_path='local/', preserve_file_name=True)
+    local_file = s3_hook.download_file(key='yt_api_data/test_csv_file.csv', bucket_name='yt-bucket-demo',
+                                       local_path='local/', preserve_file_name=True)
 
     with open(local_file, 'r') as f:
         print(f'file contents are: \n{f.read()}')
@@ -140,11 +142,10 @@ def load_s3_file_to_pg():
     pg_cursor = conn.cursor()
 
     with open(local_file) as f:
-        pg_cursor.copy_expert('COPY video_details FROM stdin WITH CSV', f)
+        pg_cursor.copy_expert('COPY techtalksourav.video_details FROM stdin WITH CSV', f)
 
     conn.commit()
 
-    #pg_cursor.copy_from(open(local_file, 'r'), 'video_details', sep=',', columns=('video_id', 'title', 'publish_date', 'load_timestamp', 'view_count', 'like_count', 'comment_count'))
     os.remove(local_file)
     print(f"File {local_file} has been deleted")
 

@@ -12,7 +12,7 @@ credentials = CREDENTIALS
 my_channel_id = MY_CHANNEL_ID
 
 
-def get_channel_stats(youtube):
+def get_playlist_id(youtube):
     """
     This function gets channel stats
     @param youtube: Youtube API object
@@ -109,7 +109,7 @@ if __name__ == "__main__":
         api_service_name, api_version, developerKey=credentials)
 
     # Get playlist ID which contains all videos in the channel
-    playlist_id = get_channel_stats(youtube)
+    playlist_id = get_playlist_id(youtube)
 
     # Get video IDs of all videos in the playlist
     video_ids = get_video_ids(youtube, playlist_id)

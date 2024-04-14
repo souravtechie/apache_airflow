@@ -1,0 +1,1 @@
+aws cloudformation create-stack --stack-name airflow-cicd-demo --template-body file://cicd.yml --parameters file://mwaa-cfn-cicd-parameters.json --capabilities CAPABILITY_IAM --capabilities CAPABILITY_NAMED_IAM --region=us-east-1

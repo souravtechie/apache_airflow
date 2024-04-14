@@ -14,7 +14,7 @@ api_version = "v3"
 credentials = CREDENTIALS
 my_channel_id = MY_CHANNEL_ID
 
-def get_channel_stats(youtube):
+def get_playlist_id(youtube):
     """
     This function gets channel stats
     @param youtube: Youtube API object
@@ -107,7 +107,7 @@ def call_yt_apis(*args, **kwargs):
     youtube = build(
         api_service_name, api_version, developerKey=credentials)
 
-    playlist_id = get_channel_stats(youtube)
+    playlist_id = get_playlist_id(youtube)
     video_ids = get_video_ids(youtube, playlist_id)
     vids_details = get_video_details(youtube, video_ids)
 
@@ -123,54 +123,55 @@ def call_yt_apis(*args, **kwargs):
     df.to_csv(csv_buffer, index=False, header=False)
 
     #Store file to S3
-    s3.load_string(string_data=csv_buffer.getvalue(), key='yt_api_data/test_csv_file.csv', bucket_name='yt-bucket-demo', replace=True)
+    s3.load_string(string_data=csv_buffer.getvalue(), key='yt_api_data/test_csv_file.csv',
+                   bucket_name='yt-bucket-demo', replace=True)
 
 
 def load_s3_file_to_pg():
     pg_hook = PostgresHook(postgres_conn_id='yt_pg')
     s3_hook = S3Hook(aws_conn_id='s3_test')
 
-    local_file = s3_hook.download_file(key='yt_api_data/test_csv_file.csv', bucket_name='yt-bucket-demo', local_path='local/', preserve_file_name=True)
-
-    print(f'type of local file = {type(local_file)}')
-    print(f'Local file = {local_file}')
-
-    conn = pg_hook.get_conn()
-    pg_cursor = conn.cursor()
+    local_file = s3_hook.download_file(key='yt_api_data/test_csv_file.csv', bucket_name='yt-bucket-demo',
+                                       local_path='local/', preserve_file_name=True)
 
     with open(local_file, 'r') as f:
         print(f'file contents are: \n{f.read()}')
 
-    with open(local_file) as f:
-        pg_cursor.copy_expert('COPY video_details FROM stdin WITH CSV', f)
 
-    #pg_cursor.copy_from(open(local_file, 'r'), 'video_details', sep=',', columns=('video_id', 'title', 'publish_date', 'load_timestamp', 'view_count', 'like_count', 'comment_count'))
+    conn = pg_hook.get_conn()
+    pg_cursor = conn.cursor()
+
+    with open(local_file) as f:
+        pg_cursor.copy_expert('COPY techtalksourav.video_details FROM stdin WITH CSV', f)
+
+    conn.commit()
+
     os.remove(local_file)
     print(f"File {local_file} has been deleted")
 
-    conn.commit()
     conn.close()
+
 
 
 # Define the DAG
 with DAG(
-    dag_id="youtube_views_data_to_S3_hooks",
-    start_date=datetime(2023, 1, 1),
+    dag_id="youtube_views_data_to_pg_hooks",
+    start_date=datetime(2024, 1, 1),
     schedule_interval="0 10 * * *",
     catchup=False,
     tags=['YT demo'],
 ) as dag:
 
     # Define Postgres task
-    cleanup_query_task = PythonOperator(
+    youtube_to_s3 = PythonOperator(
         task_id='youtube_to_s3',
         python_callable=call_yt_apis
     )
 
     transfer_s3_to_sql = PythonOperator(
-        task_id='yt_pg',
+        task_id='s3_to_postgres',
         python_callable=load_s3_file_to_pg,
         provide_context=True
     )
 
-    transfer_s3_to_sql.set_upstream(cleanup_query_task)
+    transfer_s3_to_sql.set_upstream(youtube_to_s3)

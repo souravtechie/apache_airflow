@@ -15,7 +15,7 @@ api_version = "v3"
 credentials = CREDENTIALS
 my_channel_id = MY_CHANNEL_ID
 
-def get_channel_stats(youtube):
+def get_playlist_id(youtube):
     """
     This function gets channel stats
     @param youtube: Youtube API object
@@ -108,7 +108,7 @@ def call_yt_apis(*args, **kwargs):
     youtube = build(
         api_service_name, api_version, developerKey=credentials)
 
-    playlist_id = get_channel_stats(youtube)
+    playlist_id = get_playlist_id(youtube)
     video_ids = get_video_ids(youtube, playlist_id)
     vids_details = get_video_details(youtube, video_ids)
 
@@ -131,7 +131,7 @@ def load_s3_file_to_pg():
     pg_hook = PostgresHook(postgres_conn_id='yt_pg')
     s3_hook = S3Hook(aws_conn_id='s3_test')
 
-    local_file = s3_hook.download_file(key='yt_api_data/test_csv_file.csv', bucket_name='yt-bucket-demo', local_path='local/', preserve_file_name=True)
+    local_file = s3_hook.download_file(key='yt_api_data/video_details.csv', bucket_name='yt-bucket-demo', local_path='local/', preserve_file_name=True)
     #local_file = s3_hook.get_conn().download_file(Key='yt_api_data/test_csv_file.csv', Filename='test_csv_file_local.csv', Bucket='yt-bucket-demo')
 
     print(f'type of local file = {type(local_file)}')
@@ -158,7 +158,7 @@ with DAG(
 ) as dag:
 
     # Define Postgres task
-    cleanup_query_task = PythonOperator(
+    youtube_to_s3 = PythonOperator(
         task_id='youtube_to_s3',
         python_callable=call_yt_apis
     )
@@ -178,11 +178,11 @@ with DAG(
         postgres_conn_id='yt_pg',
     )
 
-    trigger_task = TriggerDagRunOperator(
-        task_id="trigger_ml_demo_dag",
-        trigger_dag_id="ml_demo_dag",
-    )
-
-    transfer_s3_to_sql.set_upstream(cleanup_query_task)
+    transfer_s3_to_sql.set_upstream(youtube_to_s3)
     test_sql.set_upstream(transfer_s3_to_sql)
+
+    trigger_task = TriggerDagRunOperator(
+        task_id="trigger_xcom_demo",
+        trigger_dag_id="xcom_demo",
+    )
     trigger_task.set_upstream(test_sql)

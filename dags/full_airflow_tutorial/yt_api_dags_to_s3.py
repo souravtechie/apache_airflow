@@ -5,33 +5,39 @@ from airflow.operators.python_operator import PythonOperator
 from googleapiclient.discovery import build
 from airflow.hooks.S3_hook import S3Hook
 from io import StringIO
+from helpers.constants import CREDENTIALS, MY_CHANNEL_ID
 
 api_service_name = "youtube"
 api_version = "v3"
-credentials = ''
-my_channel_id = ''
+credentials = CREDENTIALS
+my_channel_id = MY_CHANNEL_ID
 
-def get_channel_stats(youtube):
+def get_playlist_id(youtube):
     """
     This function gets channel stats
     @param youtube: Youtube API object
-    Returns: dataframe with all channel stats for each channel ID
+    Returns: (playlist_id) The ID of the playlist that contains the channel's uploaded videos
     """
 
     request = youtube.channels().list(
-        part="snippet,contentDetails,statistics",
+        part="snippet, contentDetails, statistics",
         id=my_channel_id
     )
     channel_response = request.execute()['items'][0]
 
-
+    # See YT APIs docs here https://developers.google.com/youtube/v3/docs/channels#contentDetails.relatedPlaylists.uploads
     playlist_id = channel_response['contentDetails']['relatedPlaylists']['uploads']
-
 
     return playlist_id
 
 
 def get_video_ids(youtube, playlist_id):
+    """
+    This function returns a list of video IDs of all videos in a YT playlist.
+    :param youtube: Youtube API object
+    :param playlist_id: ID of the playlist
+    :return: list of video IDs
+    """
     video_ids = []
 
     request = youtube.playlistItems().list(
@@ -102,24 +108,24 @@ def call_yt_apis(*args, **kwargs):
     youtube = build(
         api_service_name, api_version, developerKey=credentials)
 
-    playlist_id = get_channel_stats(youtube)
+    playlist_id = get_playlist_id(youtube)
     video_ids = get_video_ids(youtube, playlist_id)
     vids_details = get_video_details(youtube, video_ids)
 
     for vid in vids_details:
         print(vid)
 
-    df = pd.DataFrame(vids_details)
 
-    s3 = S3Hook(aws_conn_id='s3_test')
+    # Docs to hooks https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/connections.html#hooks
+    s3_hook = S3Hook(aws_conn_id='s3_test')
     csv_buffer = StringIO()
 
+    df = pd.DataFrame(vids_details)
     df.to_csv(csv_buffer, index=False)
-    s3.load_string(string_data=csv_buffer.getvalue(), key='yt_api_data/test_csv_file.csv', bucket_name='yt-bucket-demo', replace=True)
+    s3_hook.load_string(string_data=csv_buffer.getvalue(), key='yt_api_data/video_details.csv', bucket_name='yt-bucket-demo', replace=True)
 
 
-
-# Define the DAG
+# # Define the DAG
 with DAG(
     dag_id="youtube_views_data_to_S3_only",
     start_date=datetime(2023, 1, 1),
@@ -129,7 +135,7 @@ with DAG(
 ) as dag:
 
     # Define Postgres task
-    cleanup_query_task = PythonOperator(
+    youtube_to_s3clear = PythonOperator(
         task_id='youtube_to_s3',
         python_callable=call_yt_apis
     )

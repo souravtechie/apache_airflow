@@ -14,6 +14,7 @@ def predict_views():
             '5b2ZRswqSZc': 9898,
             'DEAIUu2E24A': 123}
 
+    # Push data to XCOM
     return video_scores
 
 
@@ -22,8 +23,10 @@ def branch_func(**kwargs):
     xcom_value = ti.xcom_pull(task_ids='make_weekly_views_prediction')
     length = len(xcom_value)
 
+    print(f"Avg is: { sum(xcom_value.values())*1.0/length}")
+    # Calculate average of predicted views
     if sum(xcom_value.values())*1.0/length <= 3500:
-        return 'run_instagram_ads_campaign'
+        return 'run_ad_campaign'
     else:
         return 'stop_task'
 
@@ -34,12 +37,13 @@ default_args = {
     'start_date': datetime(2022, 1, 1),
     'email_on_failure': False,
     'email_on_retry': False,
-    'retries': 1
+    'retries': 1,
+    'catchup': False
 }
 
-dag = DAG('ml_demo_dag',
+dag = DAG('xcom_demo',
           default_args=default_args,
-          schedule_interval=None)
+          schedule_interval="0 10 * * *")
 
 start_task = DummyOperator(task_id='get_youtube_data',
                            dag=dag)
@@ -60,7 +64,7 @@ branch_operator = BranchPythonOperator(
 end_task = DummyOperator(task_id='end_task',
                          dag=dag)
 
-trigger_ig_campaign = DummyOperator(task_id='run_instagram_ads_campaign',
+trigger_ig_campaign = DummyOperator(task_id='run_ad_campaign',
                                     dag=dag)
 
 start_task >> preprocess >> views_prediction >> branch_operator

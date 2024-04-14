@@ -27,7 +27,6 @@ class MyPostgresOperator(PostgresOperator):
     def execute(self, context: 'Context'):
         if self.pg_table_name is not None and self.full_s3_key is not None:
             # call that func
-            print('hi')
             self.pg_hook = PostgresHook(postgres_conn_id=self.postgres_conn_id, schema=self.database)
             s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
 
@@ -36,14 +35,11 @@ class MyPostgresOperator(PostgresOperator):
             local_file = s3_hook.download_file(key=s3_key, bucket_name=bucket_name,
                                                local_path='local/', preserve_file_name=True)
 
-            print(f'type of local file = {type(local_file)}')
-            print(f'Local file = {local_file}')
-
             pg_conn = self.pg_hook.get_conn()
             pg_cursor = pg_conn.cursor()
 
             with open(local_file) as f:
-                pg_cursor.copy_expert('COPY video_details FROM stdin WITH CSV', f)
+                pg_cursor.copy_expert(f'COPY {self.pg_table_name} FROM stdin WITH CSV', f)
 
             os.remove(local_file)
             print(f"File {local_file} has been deleted")

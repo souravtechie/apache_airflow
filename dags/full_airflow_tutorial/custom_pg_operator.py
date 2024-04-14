@@ -14,7 +14,7 @@ api_version = "v3"
 credentials = CREDENTIALS
 my_channel_id = MY_CHANNEL_ID
 
-def get_channel_stats(youtube):
+def get_playlist_id(youtube):
     """
     This function gets channel stats
     @param youtube: Youtube API object
@@ -107,7 +107,7 @@ def call_yt_apis(*args, **kwargs):
     youtube = build(
         api_service_name, api_version, developerKey=credentials)
 
-    playlist_id = get_channel_stats(youtube)
+    playlist_id = get_playlist_id(youtube)
     video_ids = get_video_ids(youtube, playlist_id)
     vids_details = get_video_details(youtube, video_ids)
 
@@ -123,33 +123,13 @@ def call_yt_apis(*args, **kwargs):
     df.to_csv(csv_buffer, index=False, header=False)
 
     #Store file to S3
-    s3.load_string(string_data=csv_buffer.getvalue(), key='yt_api_data/test_csv_file.csv', bucket_name='yt-bucket-demo', replace=True)
-
-
-def load_s3_file_to_pg():
-    pg_hook = PostgresHook(postgres_conn_id='yt_pg')
-    s3_hook = S3Hook(aws_conn_id='s3_test')
-
-    local_file = s3_hook.download_file(key='yt_api_data/test_csv_file.csv', bucket_name='yt-bucket-demo', local_path='local/', preserve_file_name=True)
-    #local_file = s3_hook.get_conn().download_file(Key='yt_api_data/test_csv_file.csv', Filename='test_csv_file_local.csv', Bucket='yt-bucket-demo')
-
-    print(f'type of local file = {type(local_file)}')
-    print(f'Local file = {local_file}')
-
-    conn = pg_hook.get_conn()
-    pg_cursor = conn.cursor()
-
-    with open(local_file, 'r') as f:
-        print(f'file contents are: {f.read()}')
-
-    pg_cursor.copy_from(open(local_file, 'r'), 'video_details', sep=',', columns=('video_id', 'view_count', 'like_count', 'comment_count', 'load_timestamp'))
-    conn.commit()
-    conn.close()
+    s3.load_string(string_data=csv_buffer.getvalue(), key='yt_api_data/test_csv_file.csv',
+                   bucket_name='yt-bucket-demo', replace=True)
 
 
 # Define the DAG
 with DAG(
-    dag_id="youtube_views_data_to_S3_custom",
+    dag_id="youtube_views_data_to_pg_custom",
     start_date=datetime(2023, 1, 1),
     schedule_interval="0 10 * * *",
     catchup=False,
@@ -157,13 +137,13 @@ with DAG(
 ) as dag:
 
     # Define Postgres task
-    cleanup_query_task = PythonOperator(
+    youtube_to_s3 = PythonOperator(
         task_id='youtube_to_s3',
         python_callable=call_yt_apis
     )
 
     transfer_s3_to_sql = MyPostgresOperator(
-        task_id='yt_pg',
+        task_id='s3_to_postgres',
         sql='',
         postgres_conn_id='yt_pg',
         full_s3_key='yt-bucket-demo/yt_api_data/test_csv_file.csv',
@@ -171,11 +151,12 @@ with DAG(
         aws_conn_id='s3_test'
     )
 
-    test_sql = MyPostgresOperator(
+    transfer_s3_to_sql.set_upstream(youtube_to_s3)
+
+    validate_sql = MyPostgresOperator(
         task_id='yt_pg_test',
         sql='SELECT * FROM video_details;',
         postgres_conn_id='yt_pg',
     )
 
-    transfer_s3_to_sql.set_upstream(cleanup_query_task)
-    test_sql.set_upstream(transfer_s3_to_sql)
+    validate_sql.set_upstream(transfer_s3_to_sql)

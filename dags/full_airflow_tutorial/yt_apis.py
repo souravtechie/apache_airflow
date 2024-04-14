@@ -1,26 +1,43 @@
-from googleapiclient.discovery import build
+"""
+This python script prints the details of
+all videos from a YT channel using YT apis
+"""
 
-def get_channel_stats(youtube):
+from googleapiclient.discovery import build
+from helpers.constants import CREDENTIALS, MY_CHANNEL_ID
+
+api_service_name = "youtube"
+api_version = "v3"
+credentials = CREDENTIALS
+my_channel_id = MY_CHANNEL_ID
+
+
+def get_playlist_id(youtube):
     """
     This function gets channel stats
     @param youtube: Youtube API object
-    Returns: dataframe with all channel stats for each channel ID
+    Returns: (playlist_id) The ID of the playlist that contains the channel's uploaded videos
     """
 
     request = youtube.channels().list(
-        part="snippet,contentDetails,statistics",
+        part="snippet, contentDetails, statistics",
         id=my_channel_id
     )
     channel_response = request.execute()['items'][0]
 
-
+    # See YT APIs docs here https://developers.google.com/youtube/v3/docs/channels#contentDetails.relatedPlaylists.uploads
     playlist_id = channel_response['contentDetails']['relatedPlaylists']['uploads']
-
 
     return playlist_id
 
 
 def get_video_ids(youtube, playlist_id):
+    """
+    This function returns a list of video IDs of all videos in a YT playlist.
+    :param youtube: Youtube API object
+    :param playlist_id: ID of the playlist
+    :return: list of video IDs
+    """
     video_ids = []
 
     request = youtube.playlistItems().list(
@@ -53,7 +70,7 @@ def get_video_ids(youtube, playlist_id):
 def get_video_details(youtube, video_ids):
     """
     This function gets details for a video
-    :param youtube: YT object
+    :param youtube: YT API client object
     :param video_ids: IDs of the videos we want the details for
     :return: A list of details for each video
     """
@@ -87,17 +104,20 @@ def get_video_details(youtube, video_ids):
 
 
 if __name__ == "__main__":
-    api_service_name = "youtube"
-    api_version = "v3"
-    credentials = ''
-    my_channel_id = ''
     # Get credentials and create an API client
     youtube = build(
         api_service_name, api_version, developerKey=credentials)
 
-    playlist_id = get_channel_stats(youtube)
+    # Get playlist ID which contains all videos in the channel
+    playlist_id = get_playlist_id(youtube)
+
+    # Get video IDs of all videos in the playlist
     video_ids = get_video_ids(youtube, playlist_id)
+
+    # Get details of each video in the playlist.
+    # Details such as title, publish date, view count, like count and comment count
     vids_details = get_video_details(youtube, video_ids)
 
+    # Print the details
     for vid in vids_details:
         print(vid)
